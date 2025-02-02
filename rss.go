@@ -2,11 +2,18 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/http"
+	"strings"
+	"time"
+
+	"github.com/abtsousa/gator/internal/database"
+	"github.com/google/uuid"
 )
 
 type RSSFeed struct {
@@ -73,9 +80,33 @@ func scrapeFeeds(s *state) error {
             return fmt.Errorf("Couldn't mark feed as fetched: %v", err)
     }
 
-	fmt.Println(rss.Channel.Title)
     for _, item := range rss.Channel.Item {
-    	fmt.Printf("* %s\n", item.Title)
+
+		publishedAt := sql.NullTime{}
+		if t, err := time.Parse(time.RFC1123Z, item.PubDate); err == nil {
+			publishedAt = sql.NullTime{
+				Time:  t,
+				Valid: true,
+			}
+		}
+    	
+    	_, err := s.db.CreatePost(context.Background(), database.CreatePostParams{
+    		ID:          uuid.New(),
+    		CreatedAt:   time.Now().UTC(),
+    		UpdatedAt:   time.Now().UTC(),
+    		Title:       sql.NullString{String: item.Title, Valid: true},
+    		Url:         item.Link,
+    		Description: sql.NullString{String: item.Description, Valid: true},
+    		PublishedAt: publishedAt,
+    		FeedID:      fd.ID,
+    	})
+    	if err != nil {
+			if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+				continue
+			}
+			log.Printf("Couldn't create post: %v", err)
+			continue
+    	}
   	}
 
 	return nil
