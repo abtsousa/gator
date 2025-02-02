@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func handler_follow(s *state, cmd command) error {
+func handler_follow(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 1 {
 		return fmt.Errorf("Usage: %v <urL>", cmd.name)
 	}
@@ -20,8 +20,6 @@ func handler_follow(s *state, cmd command) error {
 	if err != nil {
 		return fmt.Errorf("Couldn't retrieve feed: %v", err)
 	}
-
-	user, _:= s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
 
 	_, err = s.db.CreateFeedFollow(context.Background(),
 	database.CreateFeedFollowParams {

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 
@@ -14,6 +16,22 @@ import (
 type state struct {
 	db  *database.Queries
 	cfg *config.Config
+}
+
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+
+	return func(s *state, cmd command) error {
+		
+		user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+		if err != nil {
+			return fmt.Errorf("Couldn't retrieve current user: %v", err)
+		}
+		err = handler(s, cmd, user)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 }
 
 func main() {
@@ -36,10 +54,11 @@ func main() {
 	cmds.register("register", handler_register)
 	cmds.register("users", handler_users)
 	cmds.register("agg", handler_agg)
-	cmds.register("addfeed", handler_addfeed)
+	cmds.register("addfeed", middlewareLoggedIn(handler_addfeed))
 	cmds.register("feeds", handler_feeds)
-	cmds.register("follow", handler_follow)
-	cmds.register("following", handler_following)
+	cmds.register("follow", middlewareLoggedIn(handler_follow))
+	cmds.register("following", middlewareLoggedIn(handler_following))
+	cmds.register("unfollow", middlewareLoggedIn(handler_unfollow))
 	cmds.register("reset", handler_reset)
 	cmd := command{}
 

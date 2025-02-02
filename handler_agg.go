@@ -1,21 +1,26 @@
 package main
 
 import (
-	"context"
 	"fmt"
+	"time"
 )
 
 func handler_agg(s *state, cmd command) error {
-	if len(cmd.args) != 0 {
-		return fmt.Errorf("Usage: %v", cmd.name)
+	if len(cmd.args) != 1 {
+		return fmt.Errorf("Usage: %v <time_between_reqs>", cmd.name)
 	}
 
-	rss, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	tm, err := time.ParseDuration(cmd.args[0])
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to parse time: %v", err)
 	}
 
-	fmt.Println(rss)
+	ticker := time.NewTicker(tm)
+	for ; ; <-ticker.C {
+		err := scrapeFeeds(s)
+		if err != nil {
+			return err
+		}
+	}
 
-	return nil
 }
