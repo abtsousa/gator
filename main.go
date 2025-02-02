@@ -38,6 +38,8 @@ func main() {
 	cmds.register("agg", handler_agg)
 	cmds.register("addfeed", handler_addfeed)
 	cmds.register("feeds", handler_feeds)
+	cmds.register("follow", handler_follow)
+	cmds.register("following", handler_following)
 	cmds.register("reset", handler_reset)
 	cmd := command{}
 

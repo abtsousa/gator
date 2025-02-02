@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/abtsousa/gator/internal/database"
+	"github.com/google/uuid"
 )
 
 func handler_addfeed(s *state, cmd command) error {
@@ -21,6 +22,7 @@ func handler_addfeed(s *state, cmd command) error {
 	}
 
 	fd, err := s.db.AddFeed(context.Background(), database.AddFeedParams{
+		ID: uuid.New(),
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 		Name:      name,
@@ -30,7 +32,22 @@ func handler_addfeed(s *state, cmd command) error {
 	if err != nil {
 		return fmt.Errorf("Couldn't add feed: %v", err)
 	}
+
+
 	fmt.Println("Added new feed.")
-	fmt.Println(fd)
+
+	_, err = s.db.CreateFeedFollow(context.Background(),
+	database.CreateFeedFollowParams {
+		ID: uuid.New(),
+		CreatedAt: fd.CreatedAt,
+		UpdatedAt: fd.UpdatedAt,
+		UserID: user.ID,
+		FeedID: fd.ID,
+		})
+
+	if err != nil {
+		return fmt.Errorf("Failed to follow feed.", err)
+	}
+
 	return nil
 }

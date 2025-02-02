@@ -13,18 +13,20 @@ import (
 )
 
 const addFeed = `-- name: AddFeed :one
-INSERT INTO feeds (created_at, updated_at, name, url, user_id)
+INSERT INTO feeds (id, created_at, updated_at, name, url, user_id)
 VALUES (
     $1,
     $2,
     $3,
     $4,
-    $5
+    $5,
+    $6
 )
-RETURNING created_at, updated_at, name, url, user_id
+RETURNING id, created_at, updated_at, name, url, user_id
 `
 
 type AddFeedParams struct {
+	ID        uuid.UUID
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Name      string
@@ -34,6 +36,7 @@ type AddFeedParams struct {
 
 func (q *Queries) AddFeed(ctx context.Context, arg AddFeedParams) (Feed, error) {
 	row := q.db.QueryRowContext(ctx, addFeed,
+		arg.ID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 		arg.Name,
@@ -42,6 +45,25 @@ func (q *Queries) AddFeed(ctx context.Context, arg AddFeedParams) (Feed, error) 
 	)
 	var i Feed
 	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Name,
+		&i.Url,
+		&i.UserID,
+	)
+	return i, err
+}
+
+const getFeed = `-- name: GetFeed :one
+SELECT id, created_at, updated_at, name, url, user_id FROM feeds WHERE (feeds.url = $1)
+`
+
+func (q *Queries) GetFeed(ctx context.Context, url string) (Feed, error) {
+	row := q.db.QueryRowContext(ctx, getFeed, url)
+	var i Feed
+	err := row.Scan(
+		&i.ID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Name,
@@ -52,14 +74,18 @@ func (q *Queries) AddFeed(ctx context.Context, arg AddFeedParams) (Feed, error) 
 }
 
 const getFeeds = `-- name: GetFeeds :many
-SELECT f.name, f.url, u.name AS "user"
+SELECT f.id, f.created_at, f.updated_at, f.name, f.url, f.user_id, u.name AS "user"
 FROM feeds f JOIN users u ON f.user_id = u.id
 `
 
 type GetFeedsRow struct {
-	Name string
-	Url  string
-	User string
+	ID        uuid.UUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Name      string
+	Url       string
+	UserID    uuid.UUID
+	User      string
 }
 
 func (q *Queries) GetFeeds(ctx context.Context) ([]GetFeedsRow, error) {
@@ -71,7 +97,15 @@ func (q *Queries) GetFeeds(ctx context.Context) ([]GetFeedsRow, error) {
 	var items []GetFeedsRow
 	for rows.Next() {
 		var i GetFeedsRow
-		if err := rows.Scan(&i.Name, &i.Url, &i.User); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Name,
+			&i.Url,
+			&i.UserID,
+			&i.User,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
